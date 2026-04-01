@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mapbox Experiment Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <style>
+    :root {
+      --wm-blue: #0053e2;
+      --wm-blue-dark: #003da8;
+      --wm-spark: #ffc220;
+      --wm-gray: #f4f5f7;
+    }
+    .btn-primary   { background: var(--wm-blue); color: #fff; }
+    .btn-primary:hover { background: var(--wm-blue-dark); }
+    .kpi-card { border-left: 4px solid var(--wm-blue); }
+    .kpi-card.control { border-left-color: var(--wm-spark); }
+    .badge-test    { background: var(--wm-blue);  color: #fff; }
+    .badge-control { background: #995213; color: #fff; }
+    .chart-wrap { position: relative; height: 220px; }
+    .spinner { border: 3px solid #e5e7eb; border-top-color: var(--wm-blue); border-radius: 50%; width:28px; height:28px; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen">
+
+<!-- ── HEADER ─────────────────────────────────────────────────────────── -->
+<header class="text-white px-6 py-4 flex items-center gap-4 shadow" style="background:var(--wm-blue)">
+  <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+    <circle cx="18" cy="18" r="18" fill="#ffc220"/>
+    <path d="M18 8 L20 15 L18 13 L16 15 Z M18 28 L16 21 L18 23 L20 21 Z M8 18 L15 16 L13 18 L15 20 Z M28 18 L21 20 L23 18 L21 16 Z" fill="#0053e2"/>
+  </svg>
+  <div>
+    <h1 class="text-xl font-bold tracking-wide">Mapbox Experiment Dashboard</h1>
+    <p class="text-blue-200 text-xs">Test = Mapbox &nbsp;|&nbsp; Control = Google (configurable)</p>
+  </div>
+  <div class="ml-auto flex items-center gap-2">
+    <div id="spinner" class="spinner hidden"></div>
+    <button onclick="loadAll()" class="btn-primary px-4 py-2 rounded font-semibold text-sm transition">⟳ Refresh</button>
+  </div>
+</header>
+
+<!-- ── FILTER PANEL ───────────────────────────────────────────────────── -->
+<section class="bg-white border-b px-6 py-4 shadow-sm">
+  <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+
+    <!-- Date From -->
+    <div>
+      <label class="block text-xs font-semibold text-gray-500 mb-1">Date From (slot_dt)</label>
+      <input id="date_from" type="date" class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2" style="--tw-ring-color:var(--wm-blue)" />
+    </div>
+
+    <!-- Date To -->
+    <div>
+      <label class="block text-xs font-semibold text-gray-500 mb-1">Date To (slot_dt)</label>
+      <input id="date_to" type="date" class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2" />
+    </div>
+
+    <!-- Address Type -->
+    <div>
+      <label class="block text-xs font-semibold text-gray-500 mb-1">Address Type</label>
+      <div id="addr_type_wrap" class="flex flex-wrap gap-2 text-xs">
+        <span class="text-gray-400 italic">Loading…</span>
+      </div>
+    </div>
+
+    <!-- Control Source -->
+    <div>
+      <label class="block text-xs font-semibold text-gray-500 mb-1">Control Source <span class="text-gray-400">(excl. Mapbox)</span></label>
+      <div id="ctrl_src_wrap" class="flex flex-wrap gap-2 text-xs">
+        <span class="text-gray-400 italic">Loading…</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="max-w-7xl mx-auto mt-3 flex gap-3">
+    <button onclick="loadAll()" class="btn-primary px-5 py-2 rounded font-semibold text-sm transition">Apply Filters</button>
+    <button onclick="resetFilters()" class="bg-gray-100 text-gray-700 px-5 py-2 rounded font-semibold text-sm hover:bg-gray-200 transition">Reset</button>
+  </div>
+</section>
+
+<!-- ── KPI SUMMARY ────────────────────────────────────────────────────── -->
+<main class="max-w-7xl mx-auto px-6 py-6 space-y-8">
+
+  <!-- Group labels -->
+  <div class="flex gap-4">
+    <span class="badge-test px-3 py-1 rounded-full text-xs font-bold">🧪 Test — Mapbox</span>
+    <span class="badge-control px-3 py-1 rounded-full text-xs font-bold">🎛 Control — Google</span>
+  </div>
+
+  <!-- KPI grid -->
+  <div id="kpi_grid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+    <div class="col-span-full text-center text-gray-400 py-12">Select filters and click Apply.</div>
+  </div>
+
+  <!-- ── CHARTS ──────────────────────────────────────────────────────── -->
+  <h2 class="text-base font-bold text-gray-700 border-b pb-2">Weekly Trends</h2>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+    <div class="bg-white rounded-lg shadow p-4"><p class="text-xs font-semibold text-gray-500 mb-2">Total Orders</p><div class="chart-wrap"><canvas id="c_total_orders"></canvas></div></div>
+    <div class="bg-white rounded-lg shadow p-4"><p class="text-xs font-semibold text-gray-500 mb-2">% Perfect Orders</p><div class="chart-wrap"><canvas id="c_pct_perfect_orders"></canvas></div></div>
+    <div class="bg-white rounded-lg shadow p-4"><p class="text-xs font-semibold text-gray-500 mb-2">% Missing Orders</p><div class="chart-wrap"><canvas id="c_pct_missing_orders"></canvas></div></div>
+    <div class="bg-white rounded-lg shadow p-4"><p class="text-xs font-semibold text-gray-500 mb-2">% Contacts</p><div class="chart-wrap"><canvas id="c_pct_contacts"></canvas></div></div>
+    <div class="bg-white rounded-lg shadow p-4"><p class="text-xs font-semibold text-gray-500 mb-2">% Contact — Can't Find Address</p><div class="chart-wrap"><canvas id="c_pct_contact_cant_find"></canvas></div></div>
+    <div class="bg-white rounded-lg shadow p-4"><p class="text-xs font-semibold text-gray-500 mb-2">% Contact — Can't Confirm Arrival</p><div class="chart-wrap"><canvas id="c_pct_contact_cant_confirm"></canvas></div></div>
+    <div class="bg-white rounded-lg shadow p-4"><p class="text-xs font-semibold text-gray-500 mb-2">% Force Complete</p><div class="chart-wrap"><canvas id="c_pct_force_complete"></canvas></div></div>
+    <div class="bg-white rounded-lg shadow p-4"><p class="text-xs font-semibold text-gray-500 mb-2">% Returned PO</p><div class="chart-wrap"><canvas id="c_pct_returned"></canvas></div></div>
+    <div class="bg-white rounded-lg shadow p-4"><p class="text-xs font-semibold text-gray-500 mb-2">% Return — Can't Find Address</p><div class="chart-wrap"><canvas id="c_pct_return_cant_find"></canvas></div></div>
+    <div class="bg-white rounded-lg shadow p-4"><p class="text-xs font-semibold text-gray-500 mb-2">% Return — Can't Confirm Arrival</p><div class="chart-wrap"><canvas id="c_pct_return_cant_confirm"></canvas></div></div>
+  </div>
+
+</main>
+
+<footer class="text-center text-xs text-gray-400 py-6">Mapbox Experiment Dashboard &bull; LMD Analytics &bull; Data: <code>wmt-driver-insights.Chirag_dx.HB_mapbox_implementation_base_table</code></footer>
+
+<script>
+// ── Constants ────────────────────────────────────────────────────────────
+const BLUE   = '#0053e2';
+const SPARK  = '#995213';
+const LABELS = {
+  total_orders:              'Total Orders',
+  pct_perfect_orders:        '% Perfect Orders',
+  pct_missing_orders:        '% Missing Orders',
+  pct_contacts:              '% Contacts',
+  pct_contact_cant_find:     '% Contact — Cant Find Addr',
+  pct_contact_cant_confirm:  '% Contact — Cant Confirm Arrival',
+  pct_force_complete:        '% Force Complete',
+  pct_returned:              '% Returned PO',
+  pct_return_cant_find:      '% Return — Cant Find Addr',
+  pct_return_cant_confirm:   '% Return — Cant Confirm Arrival',
+};
+
+const CHART_IDS = Object.keys(LABELS);
+const charts = {};
+
+// ── State ─────────────────────────────────────────────────────────────────
+let allAddrTypes    = [];
+let allCtrlSources  = [];
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function showSpinner(v) {
+  document.getElementById('spinner').classList.toggle('hidden', !v);
+}
+
+function fmt(v, isCount = false) {
+  if (v === null || v === undefined) return '—';
+  if (isCount) return Number(v).toLocaleString();
+  return Number(v).toFixed(2) + '%';
+}
+
+function selectedCheckboxValues(name) {
+  return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(el => el.value);
+}
+
+function getFilters() {
+  const date_from     = document.getElementById('date_from').value;
+  const date_to       = document.getElementById('date_to').value;
+  const address_types = selectedCheckboxValues('addr_type');
+  const control_sources = selectedCheckboxValues('ctrl_src');
+  return { date_from, date_to, address_types, control_sources };
+}
+
+// ── Default dates (last 8 wm_wks ≈ 56 days) ──────────────────────────────
+function initDates() {
+  const today = new Date();
+  const from  = new Date(today); from.setDate(today.getDate() - 56);
+  document.getElementById('date_to').value   = today.toISOString().slice(0,10);
+  document.getElementById('date_from').value = from.toISOString().slice(0,10);
+}
+
+// ── Build checkbox pill ───────────────────────────────────────────────────
+function pill(name, value, label, checked) {
+  const id  = `chk_${name}_${value.replace(/\W/g,'_')}`;
+  return `
+    <label for="${id}" class="cursor-pointer flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-medium
+      ${checked ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}
+      hover:border-blue-400 transition select-none">
+      <input id="${id}" type="checkbox" name="${name}" value="${value}" ${checked ? 'checked' : ''}
+        class="hidden" onchange="togglePill(this)" />
+      ${label}
+    </label>`;
+}
+
+function togglePill(el) {
+  const lbl = el.closest('label');
+  if (el.checked) {
+    lbl.classList.add('bg-blue-600','text-white','border-blue-600');
+    lbl.classList.remove('bg-white','text-gray-600','border-gray-300');
+  } else {
+    lbl.classList.remove('bg-blue-600','text-white','border-blue-600');
+    lbl.classList.add('bg-white','text-gray-600','border-gray-300');
+  }
+}
+
+// ── Load filter options from API ──────────────────────────────────────────
+async function loadFilters() {
+  const res  = await fetch('/api/filters');
+  const data = await res.json();
+  allAddrTypes   = data.address_types  || [];
+  allCtrlSources = data.control_sources || [];
+
+  // Address types — all selected by default
+  document.getElementById('addr_type_wrap').innerHTML =
+    allAddrTypes.map(t => pill('addr_type', t, t, true)).join('')
+    || '<span class="text-gray-400 italic">None found</span>';
+
+  // Control sources — GOOGLE pre-selected, rest unselected
+  document.getElementById('ctrl_src_wrap').innerHTML =
+    allCtrlSources.map(s => pill('ctrl_src', s, s, s === 'GOOGLE')).join('')
+    || '<span class="text-gray-400 italic">None found</span>';
+}
+
+// ── KPI Cards ─────────────────────────────────────────────────────────────
+function kpiCard(metric, testVal, ctrlVal, isCount) {
+  const label  = LABELS[metric] || metric;
+  const delta  = (testVal !== null && ctrlVal !== null)
+    ? (testVal - ctrlVal).toFixed(2) : null;
+  const sign   = delta > 0 ? '+' : '';
+  const deltaColor = metric.includes('missing') || metric.includes('return') ||
+    metric.includes('force') || metric.includes('contact')
+    ? (delta > 0 ? 'text-red-500' : 'text-green-600')
+    : (delta > 0 ? 'text-green-600' : 'text-red-500');
+  return `
+    <div class="bg-white rounded-lg shadow p-4 space-y-3">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">${label}</p>
+      <div class="flex gap-3">
+        <div class="kpi-card flex-1 pl-3">
+          <p class="text-2xl font-bold" style="color:var(--wm-blue)">${fmt(testVal, isCount)}</p>
+          <p class="text-xs text-gray-400 mt-0.5">🧪 Mapbox (Test)</p>
+        </div>
+        <div class="kpi-card control flex-1 pl-3">
+          <p class="text-2xl font-bold" style="color:#995213">${fmt(ctrlVal, isCount)}</p>
+          <p class="text-xs text-gray-400 mt-0.5">🎛 Google (Control)</p>
+        </div>
+      </div>
+      ${delta !== null ? `<p class="text-xs font-semibold ${deltaColor}">Δ ${sign}${delta}${isCount ? '' : '%'} Test vs Control</p>` : ''}
+    </div>`;
+}
+
+function renderKPIs(data) {
+  const test = data['Mapbox'] || {};
+  const ctrl = data['Google (Control)'] || {};
+  const grid = document.getElementById('kpi_grid');
+  grid.innerHTML = CHART_IDS.map((m, i) =>
+    kpiCard(m, test[m] ?? null, ctrl[m] ?? null, m === 'total_orders')
+  ).join('');
+}
+
+// ── Chart helpers ─────────────────────────────────────────────────────────
+function makeOrUpdate(id, weeks, testSeries, ctrlSeries, isCount) {
+  const ctx = document.getElementById(`c_${id}`);
+  if (!ctx) return;
+  const formatTick = v => isCount ? v.toLocaleString() : v.toFixed(2) + '%';
+  const cfg = {
+    type: 'line',
+    data: {
+      labels: weeks,
+      datasets: [
+        { label: 'Mapbox (Test)',       data: testSeries, borderColor: BLUE,  backgroundColor: BLUE  + '22', tension: 0.3, pointRadius: 3, fill: false },
+        { label: 'Google (Control)',    data: ctrlSeries, borderColor: SPARK, backgroundColor: SPARK + '22', tension: 0.3, pointRadius: 3, fill: false },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { font: { size: 10 } } } },
+      scales: {
+        x: { ticks: { font: { size: 9 }, maxRotation: 45 } },
+        y: { ticks: { font: { size: 9 }, callback: formatTick } }
+      }
+    }
+  };
+  if (charts[id]) {
+    charts[id].data = cfg.data;
+    charts[id].update();
+  } else {
+    charts[id] = new Chart(ctx, cfg);
+  }
+}
+
+function renderCharts(trends) {
+  const weeks = trends.weeks || [];
+  const data  = trends.data  || {};
+  CHART_IDS.forEach(metric => {
+    const groups   = data[metric] || {};
+    const testSeries = weeks.map(w => groups['Mapbox']            ? (groups['Mapbox'][w]            ?? null) : null);
+    const ctrlSeries = weeks.map(w => groups['Google (Control)']  ? (groups['Google (Control)'][w]  ?? null) : null);
+    makeOrUpdate(metric, weeks, testSeries, ctrlSeries, metric === 'total_orders');
+  });
+}
+
+// ── Main load ─────────────────────────────────────────────────────────────
+async function loadAll() {
+  const filters = getFilters();
+  if (!filters.date_from || !filters.date_to) {
+    alert('Please select a date range.');
+    return;
+  }
+  if (!filters.control_sources.length) {
+    alert('Please select at least one Control source.');
+    return;
+  }
+  showSpinner(true);
+  try {
+    const [mRes, tRes] = await Promise.all([
+      fetch('/api/metrics', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(filters) }),
+      fetch('/api/trends',  { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(filters) }),
+    ]);
+    const metrics = await mRes.json();
+    const trends  = await tRes.json();
+    if (metrics.error) throw new Error(metrics.error);
+    renderKPIs(metrics);
+    renderCharts(trends);
+  } catch (e) {
+    document.getElementById('kpi_grid').innerHTML =
+      `<div class="col-span-full text-red-500 text-sm p-4">❌ Error: ${e.message}</div>`;
+  } finally {
+    showSpinner(false);
+  }
+}
+
+function resetFilters() {
+  initDates();
+  // Re-check all addr_type pills
+  document.querySelectorAll('input[name="addr_type"]').forEach(el => { el.checked = true; togglePill(el); });
+  // Reset ctrl_src to GOOGLE only
+  document.querySelectorAll('input[name="ctrl_src"]').forEach(el => {
+    el.checked = el.value === 'GOOGLE';
+    togglePill(el);
+  });
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────
+(async () => {
+  initDates();
+  await loadFilters();
+  await loadAll();
+})();
+</script>
+
+</body>
+</html>
