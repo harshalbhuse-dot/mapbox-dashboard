@@ -85,8 +85,8 @@ def get_summary_metrics(
             ELSE Test_Control
           END AS group_label,
           SUM(total_orders)                                                   AS total_orders,
-          AVG(perfect_orders)                                                 AS pct_perfect_orders,
-          AVG(missing_orders)                                                 AS pct_missing_orders,
+          SAFE_DIVIDE(SUM(perfect_orders), SUM(total_orders))          * 100 AS pct_perfect_orders,
+          SAFE_DIVIDE(SUM(missing_orders),  SUM(total_orders))          * 100 AS pct_missing_orders,
           SAFE_DIVIDE(SUM(contact_num),            SUM(contact_den))    * 100 AS pct_contacts,
           SAFE_DIVIDE(SUM(contact_cant_find_add_num),   SUM(contact_den))    * 100 AS pct_contact_cant_find,
           SAFE_DIVIDE(SUM(contact_cant_confirm_arrival_num), SUM(contact_den)) * 100 AS pct_contact_cant_confirm,
@@ -138,8 +138,8 @@ def get_weekly_trends(
             ELSE Test_Control
           END AS group_label,
           SUM(total_orders)                                                        AS total_orders,
-          AVG(perfect_orders)                                                      AS pct_perfect_orders,
-          AVG(missing_orders)                                                      AS pct_missing_orders,
+          SAFE_DIVIDE(SUM(perfect_orders), SUM(total_orders))               * 100 AS pct_perfect_orders,
+          SAFE_DIVIDE(SUM(missing_orders),  SUM(total_orders))               * 100 AS pct_missing_orders,
           SAFE_DIVIDE(SUM(contact_num),            SUM(contact_den))         * 100 AS pct_contacts,
           SAFE_DIVIDE(SUM(contact_cant_find_add_num),   SUM(contact_den))    * 100 AS pct_contact_cant_find,
           SAFE_DIVIDE(SUM(contact_cant_confirm_arrival_num), SUM(contact_den)) * 100 AS pct_contact_cant_confirm,
