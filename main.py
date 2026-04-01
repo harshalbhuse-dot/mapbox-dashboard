@@ -1,10 +1,9 @@
 """FastAPI application entry point for the Mapbox Experiment Dashboard."""
 
-from fastapi import FastAPI, Request, Query
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from typing import Optional
 import bq_client
 
 app = FastAPI(title="Mapbox Experiment Dashboard")
@@ -29,7 +28,7 @@ class MetricsRequest(BaseModel):
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """Serve the dashboard shell. Filters and data load client-side on boot."""
-    return templates.TemplateResponse("dashboard.html", {"request": request})
+    return templates.TemplateResponse(request, "dashboard.html")
 
 
 @app.get("/api/filters")

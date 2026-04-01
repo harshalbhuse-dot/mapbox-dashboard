@@ -86,15 +86,23 @@
 <!-- ── KPI SUMMARY ────────────────────────────────────────────────────── -->
 <main class="max-w-7xl mx-auto px-6 py-6 space-y-8">
 
-  <!-- Group labels -->
-  <div class="flex gap-4">
-    <span class="badge-test px-3 py-1 rounded-full text-xs font-bold">🧪 Test — Mapbox</span>
-    <span class="badge-control px-3 py-1 rounded-full text-xs font-bold">🎛 Control — Google</span>
-  </div>
-
-  <!-- KPI grid -->
-  <div id="kpi_grid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
-    <div class="col-span-full text-center text-gray-400 py-12">Select filters and click Apply.</div>
+  <!-- KPI Table -->
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="w-full text-sm">
+      <thead>
+        <tr style="background:var(--wm-blue)" class="text-white">
+          <th class="text-left px-5 py-3 font-semibold w-1/3">Metric</th>
+          <th class="text-right px-5 py-3 font-semibold">🧪 Mapbox (Test)</th>
+          <th class="text-right px-5 py-3 font-semibold">🎛 Google (Control)</th>
+          <th class="text-right px-5 py-3 font-semibold">Δ Test vs Control</th>
+        </tr>
+      </thead>
+      <tbody id="kpi_table_body">
+        <tr>
+          <td colspan="4" class="text-center text-gray-400 py-12">Select filters and click Apply.</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 
   <!-- ── CHARTS ──────────────────────────────────────────────────────── -->
@@ -214,40 +222,40 @@ async function loadFilters() {
     || '<span class="text-gray-400 italic">None found</span>';
 }
 
-// ── KPI Cards ─────────────────────────────────────────────────────────────
-function kpiCard(metric, testVal, ctrlVal, isCount) {
-  const label  = LABELS[metric] || metric;
-  const delta  = (testVal !== null && ctrlVal !== null)
-    ? (testVal - ctrlVal).toFixed(2) : null;
-  const sign   = delta > 0 ? '+' : '';
-  const deltaColor = metric.includes('missing') || metric.includes('return') ||
-    metric.includes('force') || metric.includes('contact')
-    ? (delta > 0 ? 'text-red-500' : 'text-green-600')
-    : (delta > 0 ? 'text-green-600' : 'text-red-500');
-  return `
-    <div class="bg-white rounded-lg shadow p-4 space-y-3">
-      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">${label}</p>
-      <div class="flex gap-3">
-        <div class="kpi-card flex-1 pl-3">
-          <p class="text-2xl font-bold" style="color:var(--wm-blue)">${fmt(testVal, isCount)}</p>
-          <p class="text-xs text-gray-400 mt-0.5">🧪 Mapbox (Test)</p>
-        </div>
-        <div class="kpi-card control flex-1 pl-3">
-          <p class="text-2xl font-bold" style="color:#995213">${fmt(ctrlVal, isCount)}</p>
-          <p class="text-xs text-gray-400 mt-0.5">🎛 Google (Control)</p>
-        </div>
-      </div>
-      ${delta !== null ? `<p class="text-xs font-semibold ${deltaColor}">Δ ${sign}${delta}${isCount ? '' : '%'} Test vs Control</p>` : ''}
-    </div>`;
+// ── KPI Table ─────────────────────────────────────────────────────────────
+function deltaClass(metric, delta) {
+  if (delta === null) return '';
+  // For these metrics lower = better, so positive delta = worse for test
+  const lowerBetter = metric.includes('missing') || metric.includes('return') ||
+    metric.includes('force') || metric.includes('contact');
+  if (lowerBetter) return delta > 0 ? 'text-red-500 font-semibold' : 'text-green-600 font-semibold';
+  return delta > 0 ? 'text-green-600 font-semibold' : 'text-red-500 font-semibold';
 }
 
 function renderKPIs(data) {
   const test = data['Mapbox'] || {};
   const ctrl = data['Google (Control)'] || {};
-  const grid = document.getElementById('kpi_grid');
-  grid.innerHTML = CHART_IDS.map((m, i) =>
-    kpiCard(m, test[m] ?? null, ctrl[m] ?? null, m === 'total_orders')
-  ).join('');
+  const tbody = document.getElementById('kpi_table_body');
+  let rows = '';
+  CHART_IDS.forEach((m, i) => {
+    const isCount  = m === 'total_orders';
+    const testVal  = test[m] ?? null;
+    const ctrlVal  = ctrl[m] ?? null;
+    const delta    = (testVal !== null && ctrlVal !== null) ? testVal - ctrlVal : null;
+    const sign     = delta !== null && delta > 0 ? '+' : '';
+    const dClass   = deltaClass(m, delta);
+    const bgClass  = i % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+    rows += `
+      <tr class="${bgClass} border-t border-gray-100 hover:bg-blue-50 transition">
+        <td class="px-5 py-3 font-medium text-gray-700">${LABELS[m]}</td>
+        <td class="px-5 py-3 text-right font-mono" style="color:var(--wm-blue)">${fmt(testVal, isCount)}</td>
+        <td class="px-5 py-3 text-right font-mono" style="color:#995213">${fmt(ctrlVal, isCount)}</td>
+        <td class="px-5 py-3 text-right font-mono ${dClass}">
+          ${delta !== null ? sign + (isCount ? Math.round(delta).toLocaleString() : delta.toFixed(2) + '%') : '—'}
+        </td>
+      </tr>`;
+  });
+  tbody.innerHTML = rows;
 }
 
 // ── Chart helpers ─────────────────────────────────────────────────────────
@@ -315,8 +323,8 @@ async function loadAll() {
     renderKPIs(metrics);
     renderCharts(trends);
   } catch (e) {
-    document.getElementById('kpi_grid').innerHTML =
-      `<div class="col-span-full text-red-500 text-sm p-4">❌ Error: ${e.message}</div>`;
+    document.getElementById('kpi_table_body').innerHTML =
+      `<tr><td colspan="4" class="text-center text-red-500 text-sm p-6">❌ Error: ${e.message}</td></tr>`;
   } finally {
     showSpinner(false);
   }
