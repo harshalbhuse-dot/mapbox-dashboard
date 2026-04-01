@@ -323,15 +323,22 @@ function updateLabel(prefix) {
 function buildDD(prefix, values, defaultFn) {
   const cont = document.getElementById(prefix + '_opts');
   cont.innerHTML = '';
-  values.forEach(v => {
-    const chk = defaultFn(v) ? 'checked' : '';
-    const item = document.createElement('div');
-    item.className = 'dd-item';
-    item.innerHTML =
-      '<input type="checkbox" id="' + prefix + '_' + v + '" value="' + v + '" ' + chk +
-      ' onchange="updateLabel(\'' + prefix + '\')"/>'
-      + '<label for="' + prefix + '_' + v + '" class="cursor-pointer">' + v + '</label>';
-    cont.appendChild(item);
+  values.forEach(function(v) {
+    const div = document.createElement('div');
+    div.className = 'dd-item';
+    const cb = document.createElement('input');
+    cb.type    = 'checkbox';
+    cb.id      = prefix + '_' + v;
+    cb.value   = v;
+    cb.checked = !!defaultFn(v);
+    cb.addEventListener('change', function() { updateLabel(prefix); });
+    const lbl = document.createElement('label');
+    lbl.htmlFor   = prefix + '_' + v;
+    lbl.className = 'cursor-pointer';
+    lbl.textContent = v;
+    div.appendChild(cb);
+    div.appendChild(lbl);
+    cont.appendChild(div);
   });
   updateLabel(prefix);
 }
