@@ -1,5 +1,8 @@
 # Mapbox Experiment Dashboard
 
+> **🔗 Live (while host machine is on):** http://172.19.254.119:8002
+> Share this link with anyone on Eagle WiFi or Walmart VPN.
+
 Refreshable FastAPI + HTMX dashboard comparing **Mapbox (Test)** vs **Google (Control)** delivery KPIs.
 
 ## Prerequisites
@@ -26,10 +29,24 @@ uv pip install -r requirements.txt
 .venv\Scripts\activate          # Windows
 # source .venv/bin/activate     # Mac/Linux
 
-uvicorn main:app --reload --port 8000
+# Local only
+uvicorn main:app --reload --port 8002
+
+# Network-accessible (share with team on Eagle WiFi / Walmart VPN)
+uvicorn main:app --host 0.0.0.0 --reload --port 8002
 ```
 
-Open: [http://localhost:8000](http://localhost:8000)
+Local:   http://localhost:8002  
+Shared:  http://172.19.254.119:8002  *(your Eagle/VPN IP — update if it changes)*
+
+> ⚠️ The dashboard is only reachable while your machine is running and the server is active.
+> Colleagues must be on **Eagle WiFi** or **Walmart VPN** to access it.
+
+> If teammates get a connection refused, check Windows Firewall:
+> **Windows Security Alert → Allow access** when prompted, or run as admin:
+> ```
+> netsh advfirewall firewall add rule name="Mapbox Dashboard 8002" dir=in action=allow protocol=TCP localport=8002
+> ```
 
 ## Filters
 | Filter | Description |
