@@ -19,6 +19,7 @@ class MetricsRequest(BaseModel):
     date_to: str
     address_types: list[str] = []
     control_sources: list[str] = ["GOOGLE"]
+    rollout_percentages: list[str] = []
 
 
 # ---------------------------------------------------------------------------
@@ -50,6 +51,7 @@ async def api_metrics(body: MetricsRequest):
             date_to=body.date_to,
             address_types=body.address_types,
             control_sources=body.control_sources,
+            rollout_percentages=body.rollout_percentages,
         )
         # Ensure floats are JSON-serialisable (skip string fields like group_label)
         safe = {}
@@ -76,6 +78,7 @@ async def api_trends(body: MetricsRequest):
             date_to=body.date_to,
             address_types=body.address_types,
             control_sources=body.control_sources,
+            rollout_percentages=body.rollout_percentages,
         )
         return JSONResponse(content=data)
     except Exception as e:

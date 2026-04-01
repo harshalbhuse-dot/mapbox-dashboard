@@ -28,25 +28,39 @@ def _run_query(sql: str, params: list) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def get_filter_options() -> dict:
-    """Return distinct address types and non-Mapbox control lat/long sources."""
+    """Return distinct address types, rollout percentages, and control lat/long sources."""
     sql = f"""
         SELECT
-          ARRAY_AGG(DISTINCT n_addresstype IGNORE NULLS ORDER BY n_addresstype) AS address_types,
-          ARRAY_AGG(DISTINCT UPPER(RECOMMENDEDLATLONGSOURCE) IGNORE NULLS ORDER BY UPPER(RECOMMENDEDLATLONGSOURCE)) AS all_sources
+          ARRAY_AGG(DISTINCT n_addresstype          IGNORE NULLS ORDER BY n_addresstype)                            AS address_types,
+          ARRAY_AGG(DISTINCT UPPER(RECOMMENDEDLATLONGSOURCE) IGNORE NULLS ORDER BY UPPER(RECOMMENDEDLATLONGSOURCE)) AS all_sources,
+          ARRAY_AGG(DISTINCT CAST(Rollout_Percentage AS STRING) IGNORE NULLS ORDER BY CAST(Rollout_Percentage AS STRING)) AS rollout_percentages
         FROM `{BQ_TABLE}`
     """
     rows = _run_query(sql, [])
     if not rows:
-        return {"address_types": [], "control_sources": []}
+        return {"address_types": [], "control_sources": [], "rollout_percentages": []}
     row = rows[0]
-    # Exclude MAPBOX from control source options
     control_sources = [
         s for s in (row["all_sources"] or []) if s and s.upper() != "MAPBOX"
     ]
     return {
-        "address_types": [a for a in (row["address_types"] or []) if a],
-        "control_sources": control_sources,
+        "address_types":      [a for a in (row["address_types"]      or []) if a],
+        "control_sources":    control_sources,
+        "rollout_percentages": [r for r in (row["rollout_percentages"] or []) if r],
     }
+
+
+def _build_extra_filters(address_types: list[str], rollout_percentages: list[str]) -> tuple[str, list]:
+    """Return (sql_snippet, bq_params) for the optional address-type and rollout filters."""
+    clauses: list[str] = []
+    params:  list      = []
+    if address_types:
+        clauses.append("AND n_addresstype IN UNNEST(@address_types)")
+        params.append(bigquery.ArrayQueryParameter("address_types", "STRING", address_types))
+    if rollout_percentages:
+        clauses.append("AND CAST(Rollout_Percentage AS STRING) IN UNNEST(@rollout_percentages)")
+        params.append(bigquery.ArrayQueryParameter("rollout_percentages", "STRING", rollout_percentages))
+    return ("\n          ".join(clauses), params)
 
 
 # ---------------------------------------------------------------------------
@@ -58,11 +72,10 @@ def get_summary_metrics(
     date_to: str,
     address_types: list[str],
     control_sources: list[str],
+    rollout_percentages: list[str],
 ) -> dict:
     """Return Test vs Control aggregated metrics for the selected filters."""
-    addr_filter = ""
-    if address_types:
-        addr_filter = "AND n_addresstype IN UNNEST(@address_types)"
+    extra_sql, extra_params = _build_extra_filters(address_types, rollout_percentages)
 
     sql = f"""
         SELECT
@@ -88,7 +101,7 @@ def get_summary_metrics(
             OR
             (Test_Control = 'Control' AND UPPER(RECOMMENDEDLATLONGSOURCE) IN UNNEST(@control_sources))
           )
-          {addr_filter}
+          {extra_sql}
         GROUP BY Test_Control
         ORDER BY Test_Control DESC
     """
@@ -97,10 +110,8 @@ def get_summary_metrics(
         bigquery.ScalarQueryParameter("date_from", "DATE", date_from),
         bigquery.ScalarQueryParameter("date_to", "DATE", date_to),
         bigquery.ArrayQueryParameter("control_sources", "STRING", control_sources),
+        *extra_params,
     ]
-    if address_types:
-        params.append(bigquery.ArrayQueryParameter("address_types", "STRING", address_types))
-
     return {row["group_label"]: row for row in _run_query(sql, params)}
 
 
@@ -113,11 +124,10 @@ def get_weekly_trends(
     date_to: str,
     address_types: list[str],
     control_sources: list[str],
+    rollout_percentages: list[str],
 ) -> dict:
     """Return week-by-week metrics for Test and Control (for Chart.js)."""
-    addr_filter = ""
-    if address_types:
-        addr_filter = "AND n_addresstype IN UNNEST(@address_types)"
+    extra_sql, extra_params = _build_extra_filters(address_types, rollout_percentages)
 
     sql = f"""
         SELECT
@@ -144,7 +154,7 @@ def get_weekly_trends(
             OR
             (Test_Control = 'Control' AND UPPER(RECOMMENDEDLATLONGSOURCE) IN UNNEST(@control_sources))
           )
-          {addr_filter}
+          {extra_sql}
         GROUP BY wm_wk, Test_Control
         ORDER BY wm_wk, Test_Control
     """
@@ -153,9 +163,8 @@ def get_weekly_trends(
         bigquery.ScalarQueryParameter("date_from", "DATE", date_from),
         bigquery.ScalarQueryParameter("date_to", "DATE", date_to),
         bigquery.ArrayQueryParameter("control_sources", "STRING", control_sources),
+        *extra_params,
     ]
-    if address_types:
-        params.append(bigquery.ArrayQueryParameter("address_types", "STRING", address_types))
 
     rows = _run_query(sql, params)
 
