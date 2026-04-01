@@ -45,47 +45,83 @@
 
 <!-- ── FILTER PANEL ───────────────────────────────────────────────────── -->
 <section class="bg-white border-b px-6 py-4 shadow-sm">
-  <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-end">
+  <div class="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 items-end">
 
     <!-- Date From -->
     <div>
-      <label class="block text-xs font-semibold text-gray-500 mb-1">Date From (slot_dt)</label>
-      <input id="date_from" type="date" class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2" style="--tw-ring-color:var(--wm-blue)" />
+      <label class="block text-xs font-semibold text-gray-500 mb-1" for="date_from">Date From (slot_dt)</label>
+      <input id="date_from" type="date" class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:border-blue-600" />
     </div>
 
     <!-- Date To -->
     <div>
-      <label class="block text-xs font-semibold text-gray-500 mb-1">Date To (slot_dt)</label>
-      <input id="date_to" type="date" class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2" />
+      <label class="block text-xs font-semibold text-gray-500 mb-1" for="date_to">Date To (slot_dt)</label>
+      <input id="date_to" type="date" class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:border-blue-600" />
     </div>
 
-    <!-- Address Type -->
-    <div>
+    <!-- Address Type (multi-select dropdown) -->
+    <div class="relative" id="dd_wrap_addr">
       <label class="block text-xs font-semibold text-gray-500 mb-1">Address Type</label>
-      <div id="addr_type_wrap" class="flex flex-wrap gap-2 text-xs">
-        <span class="text-gray-400 italic">Loading…</span>
+      <button type="button" id="dd_btn_addr" onclick="toggleDropdown('addr')"
+        class="w-full flex items-center justify-between border rounded px-3 py-2 text-sm bg-white hover:border-blue-500 focus:outline-none focus:ring-2 focus:border-blue-600 transition"
+        aria-haspopup="listbox" aria-expanded="false">
+        <span id="dd_lbl_addr" class="truncate text-gray-700">All</span>
+        <span class="ml-2 text-gray-400 text-xs">&#9660;</span>
+      </button>
+      <div id="dd_panel_addr" role="listbox" aria-multiselectable="true"
+        class="hidden absolute top-full left-0 z-30 bg-white border border-gray-200 rounded-lg shadow-xl w-full min-w-max mt-1 max-h-52 overflow-y-auto">
+        <label class="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-500 hover:bg-blue-50 cursor-pointer border-b">
+          <input type="checkbox" id="dd_all_addr" class="accent-blue-600"
+            onchange="toggleAllMulti('addr','addr_type',this.checked)" checked />
+          All
+        </label>
+        <div id="dd_items_addr"></div>
       </div>
     </div>
 
-    <!-- Control Source -->
-    <div>
-      <label class="block text-xs font-semibold text-gray-500 mb-1">Control Source <span class="text-gray-400">(excl. Mapbox)</span></label>
-      <div id="ctrl_src_wrap" class="flex flex-wrap gap-2 text-xs">
-        <span class="text-gray-400 italic">Loading…</span>
+    <!-- Control Source (multi-select dropdown) -->
+    <div class="relative" id="dd_wrap_ctrl">
+      <label class="block text-xs font-semibold text-gray-500 mb-1">Control Source</label>
+      <button type="button" id="dd_btn_ctrl" onclick="toggleDropdown('ctrl')"
+        class="w-full flex items-center justify-between border rounded px-3 py-2 text-sm bg-white hover:border-blue-500 focus:outline-none focus:ring-2 focus:border-blue-600 transition"
+        aria-haspopup="listbox" aria-expanded="false">
+        <span id="dd_lbl_ctrl" class="truncate text-gray-700">Loading…</span>
+        <span class="ml-2 text-gray-400 text-xs">&#9660;</span>
+      </button>
+      <div id="dd_panel_ctrl" role="listbox" aria-multiselectable="true"
+        class="hidden absolute top-full left-0 z-30 bg-white border border-gray-200 rounded-lg shadow-xl w-full min-w-max mt-1 max-h-52 overflow-y-auto">
+        <label class="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-500 hover:bg-blue-50 cursor-pointer border-b">
+          <input type="checkbox" id="dd_all_ctrl" class="accent-blue-600"
+            onchange="toggleAllMulti('ctrl','ctrl_src',this.checked)" />
+          All
+        </label>
+        <div id="dd_items_ctrl"></div>
+      </div>
+    </div>
+
+    <!-- Rollout Percentage (single-select dropdown) -->
+    <div class="relative" id="dd_wrap_rollout">
+      <label class="block text-xs font-semibold text-gray-500 mb-1">Rollout Percentage</label>
+      <button type="button" id="dd_btn_rollout" onclick="toggleDropdown('rollout')"
+        class="w-full flex items-center justify-between border rounded px-3 py-2 text-sm bg-white hover:border-blue-500 focus:outline-none focus:ring-2 focus:border-blue-600 transition"
+        aria-haspopup="listbox">
+        <span id="dd_lbl_rollout" class="truncate text-gray-700">All</span>
+        <span class="ml-2 text-gray-400 text-xs">&#9660;</span>
+      </button>
+      <div id="dd_panel_rollout" role="listbox"
+        class="hidden absolute top-full left-0 z-30 bg-white border border-gray-200 rounded-lg shadow-xl w-full min-w-max mt-1 max-h-52 overflow-y-auto">
+        <label class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer border-b font-medium">
+          <input type="radio" name="rollout_pct" value="" class="accent-blue-600"
+            data-label="All" onchange="onRolloutChange()" checked />
+          All
+        </label>
+        <div id="dd_items_rollout"></div>
       </div>
     </div>
 
   </div>
 
-  <!-- Rollout % — full-width row -->
-  <div class="max-w-7xl mx-auto mt-3">
-    <label class="block text-xs font-semibold text-gray-500 mb-1">Rollout Percentage <span class="text-gray-400">(empty = all)</span></label>
-    <div id="rollout_wrap" class="flex flex-wrap gap-2 text-xs">
-      <span class="text-gray-400 italic">Loading…</span>
-    </div>
-  </div>
-
-  <div class="max-w-7xl mx-auto mt-3 flex gap-3">
+  <div class="max-w-7xl mx-auto mt-4 flex gap-3">
     <button onclick="loadAll()" class="btn-primary px-5 py-2 rounded font-semibold text-sm transition">Apply Filters</button>
     <button onclick="resetFilters()" class="bg-gray-100 text-gray-700 px-5 py-2 rounded font-semibold text-sm hover:bg-gray-200 transition">Reset</button>
   </div>
@@ -154,9 +190,10 @@ const CHART_IDS = Object.keys(LABELS);
 const charts = {};
 
 // ── State ─────────────────────────────────────────────────────────────────
-let allAddrTypes         = [];
-let allCtrlSources       = [];
-let allRolloutPcts       = [];
+let allAddrTypes   = [];
+let allCtrlSources = [];
+let allRolloutPcts = [];
+const DD_IDS = ['addr', 'ctrl', 'rollout'];
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 function showSpinner(v) {
@@ -169,16 +206,102 @@ function fmt(v, isCount = false) {
   return Number(v).toFixed(2) + '%';
 }
 
-function selectedCheckboxValues(name) {
-  return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(el => el.value);
+// ── Dropdown system ────────────────────────────────────────────────────
+function toggleDropdown(id) {
+  const panel  = document.getElementById(`dd_panel_${id}`);
+  const btn    = document.getElementById(`dd_btn_${id}`);
+  const isOpen = !panel.classList.contains('hidden');
+  // Close all first
+  DD_IDS.forEach(k => {
+    document.getElementById(`dd_panel_${k}`).classList.add('hidden');
+    document.getElementById(`dd_btn_${k}`)?.setAttribute('aria-expanded', 'false');
+  });
+  // Toggle the clicked one
+  if (!isOpen) {
+    panel.classList.remove('hidden');
+    btn.setAttribute('aria-expanded', 'true');
+  }
 }
 
+// Close dropdowns on outside click
+document.addEventListener('click', e => {
+  DD_IDS.forEach(id => {
+    const wrap = document.getElementById(`dd_wrap_${id}`);
+    if (wrap && !wrap.contains(e.target)) {
+      document.getElementById(`dd_panel_${id}`).classList.add('hidden');
+      document.getElementById(`dd_btn_${id}`)?.setAttribute('aria-expanded', 'false');
+    }
+  });
+});
+
+function updateMultiBtn(id, name) {
+  const checked = [...document.querySelectorAll(`input[name="${name}"]:checked`)];
+  const total   = document.querySelectorAll(`input[name="${name}"]`).length;
+  const allCb   = document.getElementById(`dd_all_${id}`);
+  const lbl     = document.getElementById(`dd_lbl_${id}`);
+  if (checked.length === 0 || checked.length === total) {
+    lbl.textContent = 'All';
+    if (allCb) allCb.checked = (checked.length === total);
+  } else {
+    lbl.textContent = checked.length <= 2
+      ? checked.map(el => el.value).join(', ')
+      : `${checked.length} selected`;
+    if (allCb) allCb.checked = false;
+  }
+}
+
+function toggleAllMulti(id, name, checked) {
+  document.querySelectorAll(`input[name="${name}"]`).forEach(el => { el.checked = checked; });
+  updateMultiBtn(id, name);
+}
+
+function buildMultiItems(id, name, values, defaultChecked) {
+  document.getElementById(`dd_items_${id}`).innerHTML = values.map(val => `
+    <label class="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-blue-50 cursor-pointer select-none">
+      <input type="checkbox" name="${name}" value="${val}" class="accent-blue-600"
+        ${defaultChecked(val) ? 'checked' : ''}
+        onchange="updateMultiBtn('${id}','${name}')" />
+      ${val}
+    </label>`).join('');
+  updateMultiBtn(id, name);
+}
+
+function onRolloutChange() {
+  const sel = document.querySelector('input[name="rollout_pct"]:checked');
+  document.getElementById('dd_lbl_rollout').textContent = sel?.dataset.label || 'All';
+}
+
+function buildRolloutItems(items) {
+  document.getElementById('dd_items_rollout').innerHTML = items.map(({ val, label }) => `
+    <label class="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-blue-50 cursor-pointer select-none">
+      <input type="radio" name="rollout_pct" value="${val}" data-label="${label}"
+        class="accent-blue-600" onchange="onRolloutChange()" />
+      ${label}
+    </label>`).join('');
+}
+
+function rolloutLabel(val) {
+  // Numeric strings get a % suffix; text values ("First 10", "First 50") stay as-is
+  return isNaN(Number(val)) ? val : val + '%';
+}
+
+// ── getFilters ──────────────────────────────────────────────────────────
 function getFilters() {
-  const date_from          = document.getElementById('date_from').value;
-  const date_to            = document.getElementById('date_to').value;
-  const address_types      = selectedCheckboxValues('addr_type');
-  const control_sources    = selectedCheckboxValues('ctrl_src');
-  const rollout_percentages = selectedCheckboxValues('rollout_pct');
+  const date_from = document.getElementById('date_from').value;
+  const date_to   = document.getElementById('date_to').value;
+
+  // Multi — send [] when all (or none) selected = no filter
+  const addrChecked = [...document.querySelectorAll('input[name="addr_type"]:checked')];
+  const addrTotal   = document.querySelectorAll('input[name="addr_type"]').length;
+  const address_types = (addrChecked.length === addrTotal || addrChecked.length === 0)
+    ? [] : addrChecked.map(el => el.value);
+
+  const control_sources = [...document.querySelectorAll('input[name="ctrl_src"]:checked')].map(el => el.value);
+
+  // Single rollout: empty string radio = All = send []
+  const rolloutEl = document.querySelector('input[name="rollout_pct"]:checked');
+  const rollout_percentages = rolloutEl?.value ? [rolloutEl.value] : [];
+
   return { date_from, date_to, address_types, control_sources, rollout_percentages };
 }
 
@@ -190,52 +313,21 @@ function initDates() {
   document.getElementById('date_from').value = from.toISOString().slice(0,10);
 }
 
-// ── Build checkbox pill ───────────────────────────────────────────────────
-function pill(name, value, label, checked) {
-  const id  = `chk_${name}_${value.replace(/\W/g,'_')}`;
-  return `
-    <label for="${id}" class="cursor-pointer flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-medium
-      ${checked ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}
-      hover:border-blue-400 transition select-none">
-      <input id="${id}" type="checkbox" name="${name}" value="${value}" ${checked ? 'checked' : ''}
-        class="hidden" onchange="togglePill(this)" />
-      ${label}
-    </label>`;
-}
-
-function togglePill(el) {
-  const lbl = el.closest('label');
-  if (el.checked) {
-    lbl.classList.add('bg-blue-600','text-white','border-blue-600');
-    lbl.classList.remove('bg-white','text-gray-600','border-gray-300');
-  } else {
-    lbl.classList.remove('bg-blue-600','text-white','border-blue-600');
-    lbl.classList.add('bg-white','text-gray-600','border-gray-300');
-  }
-}
-
 // ── Load filter options from API ──────────────────────────────────────────
 async function loadFilters() {
   const res  = await fetch('/api/filters');
   const data = await res.json();
-  allAddrTypes    = data.address_types   || [];
-  allCtrlSources  = data.control_sources || [];
-  allRolloutPcts  = data.rollout_percentages || [];
+  allAddrTypes   = data.address_types       || [];
+  allCtrlSources = data.control_sources     || [];
+  allRolloutPcts = data.rollout_percentages || [];
 
-  // Address types — all selected by default
-  document.getElementById('addr_type_wrap').innerHTML =
-    allAddrTypes.map(t => pill('addr_type', t, t, true)).join('')
-    || '<span class="text-gray-400 italic">None found</span>';
+  buildMultiItems('addr', 'addr_type', allAddrTypes,   ()  => true);
+  buildMultiItems('ctrl', 'ctrl_src',  allCtrlSources, v   => v === 'GOOGLE');
 
-  // Control sources — GOOGLE pre-selected, rest unselected
-  document.getElementById('ctrl_src_wrap').innerHTML =
-    allCtrlSources.map(s => pill('ctrl_src', s, s, s === 'GOOGLE')).join('')
-    || '<span class="text-gray-400 italic">None found</span>';
-
-  // Rollout percentages — none pre-selected (= all included)
-  document.getElementById('rollout_wrap').innerHTML =
-    allRolloutPcts.map(r => pill('rollout_pct', r, r + '%', false)).join('')
-    || '<span class="text-gray-400 italic">None found</span>';
+  // Sort rollout: numeric ascending, then text (First X) alphabetically
+  const nums = allRolloutPcts.filter(v => !isNaN(Number(v))).sort((a, b) => Number(a) - Number(b));
+  const text = allRolloutPcts.filter(v =>  isNaN(Number(v))).sort();
+  buildRolloutItems([...nums, ...text].map(v => ({ val: v, label: rolloutLabel(v) })));
 }
 
 // ── KPI Table ─────────────────────────────────────────────────────────────
@@ -348,15 +440,15 @@ async function loadAll() {
 
 function resetFilters() {
   initDates();
-  // Re-check all addr_type pills
-  document.querySelectorAll('input[name="addr_type"]').forEach(el => { el.checked = true; togglePill(el); });
-  // Reset ctrl_src to GOOGLE only
-  document.querySelectorAll('input[name="ctrl_src"]').forEach(el => {
-    el.checked = el.value === 'GOOGLE';
-    togglePill(el);
-  });
-  // Clear all rollout selections (= all included)
-  document.querySelectorAll('input[name="rollout_pct"]').forEach(el => { el.checked = false; togglePill(el); });
+  // Address type: all checked
+  document.querySelectorAll('input[name="addr_type"]').forEach(el => { el.checked = true; });
+  updateMultiBtn('addr', 'addr_type');
+  // Control source: GOOGLE only
+  document.querySelectorAll('input[name="ctrl_src"]').forEach(el => { el.checked = el.value === 'GOOGLE'; });
+  updateMultiBtn('ctrl', 'ctrl_src');
+  // Rollout: back to All
+  const allRadio = document.querySelector('input[name="rollout_pct"][value=""]');
+  if (allRadio) { allRadio.checked = true; onRolloutChange(); }
 }
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────
