@@ -52,13 +52,17 @@ async def api_metrics(body: MetricsRequest):
             address_types=body.address_types,
             control_sources=body.control_sources,
         )
-        # Ensure floats are JSON-serialisable
+        # Ensure floats are JSON-serialisable (skip string fields like group_label)
         safe = {}
-        for group, metrics in data.items():
-            safe[group] = {
-                k: (round(float(v), 4) if v is not None else None)
-                for k, v in metrics.items()
-            }
+        for group, row in data.items():
+            safe[group] = {}
+            for k, v in row.items():
+                if v is None:
+                    safe[group][k] = None
+                elif isinstance(v, str):
+                    safe[group][k] = v
+                else:
+                    safe[group][k] = round(float(v), 4)
         return JSONResponse(content=safe)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
