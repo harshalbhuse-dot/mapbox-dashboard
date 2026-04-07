@@ -1,0 +1,67 @@
+# ============================================================
+# Refresh Mapbox Report - GitHub Actions Workflow
+# Runs on schedule (or manually), regenerates mapbox_report.html
+# from the latest BQ data, and commits it back to the repo.
+# GitHub Pages then auto-serves the updated file.
+# ============================================================
+name: Refresh Mapbox Report
+
+on:
+  # Run daily at 8 AM UTC (adjust to fire after your BQ scheduled query)
+  schedule:
+    - cron: '0 8 * * *'
+  # Also allow manual trigger from the Actions tab
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to push the refreshed HTML back
+
+jobs:
+  refresh:
+    name: Regenerate HTML from BigQuery
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Check out the repo
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # 2. Set up Python
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # 3. Install Python dependencies
+      - name: Install dependencies
+        run: pip install google-cloud-bigquery db-dtypes pyarrow
+
+      # 4. Authenticate to GCP using service account key stored as a secret.
+      #    To set this up:
+      #      a) Create a SA in GCP with roles: BigQuery Data Viewer + BigQuery Job User
+      #      b) Download the JSON key
+      #      c) Go to your GitHub repo -> Settings -> Secrets -> Actions
+      #      d) Add a secret named GCP_SA_KEY and paste the full JSON content
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      # 5. Regenerate the HTML report from BigQuery
+      - name: Generate report
+        run: python generate_report.py
+
+      # 6. Commit and push the refreshed HTML (only if it changed)
+      - name: Commit and push refreshed report
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add mapbox_report.html
+          # Only commit if the file actually changed
+          if git diff --cached --quiet; then
+            echo "No changes to mapbox_report.html — skipping commit."
+          else
+            git commit -m "chore: auto-refresh mapbox report [$(date -u '+%Y-%m-%d %H:%M UTC')]"
+            git push
+          fi
