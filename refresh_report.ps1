@@ -26,12 +26,17 @@ try {
     $python = if (Test-Path $venvPy) { $venvPy } else { "python" }
     Log "Using Python: $python"
 
-    # 2. Make sure dependencies are installed
-    Log "Installing/verifying dependencies..."
-    & $python -m pip install -q `
-        google-cloud-bigquery db-dtypes pyarrow `
-        --index-url https://pypi.ci.artifacts.walmart.com/artifactory/api/pypi/external-pypi/simple `
-        --trusted-host pypi.ci.artifacts.walmart.com
+    # 2. Install dependencies only if not already present
+    $check = & $python -c "import google.cloud.bigquery" 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Log "Installing dependencies (first run)..."
+        & $python -m pip install -q `
+            google-cloud-bigquery db-dtypes pyarrow `
+            --index-url https://pypi.ci.artifacts.walmart.com/artifactory/api/pypi/external-pypi/simple `
+            --trusted-host pypi.ci.artifacts.walmart.com
+    } else {
+        Log "Dependencies already installed - skipping pip install."
+    }
 
     # 3. Regenerate the HTML from BigQuery
     Log "Running generate_report.py..."
