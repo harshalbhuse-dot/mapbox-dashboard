@@ -149,13 +149,31 @@ HTML = r"""
 <section class="bg-white border-b px-6 py-4 shadow-sm">
   <div class="max-w-7xl mx-auto flex flex-wrap gap-4 items-end">
 
-    <div>
-      <label class="block text-xs font-semibold text-gray-500 mb-1">Date From</label>
-      <input type="date" id="dt_from" class="border rounded px-2 py-1.5 text-sm"/>
+    <div class="border border-blue-200 rounded-lg px-3 py-2 bg-blue-50">
+      <span class="block text-xs font-bold text-blue-700 mb-2">PRE PERIOD</span>
+      <div class="flex gap-3">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">From</label>
+          <input type="date" id="pre_from" class="border rounded px-2 py-1.5 text-sm"/>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">To</label>
+          <input type="date" id="pre_to" class="border rounded px-2 py-1.5 text-sm"/>
+        </div>
+      </div>
     </div>
-    <div>
-      <label class="block text-xs font-semibold text-gray-500 mb-1">Date To</label>
-      <input type="date" id="dt_to" class="border rounded px-2 py-1.5 text-sm"/>
+    <div class="border border-amber-200 rounded-lg px-3 py-2 bg-amber-50">
+      <span class="block text-xs font-bold text-amber-700 mb-2">POST PERIOD</span>
+      <div class="flex gap-3">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">From</label>
+          <input type="date" id="post_from" class="border rounded px-2 py-1.5 text-sm"/>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">To</label>
+          <input type="date" id="post_to" class="border rounded px-2 py-1.5 text-sm"/>
+        </div>
+      </div>
     </div>
 
     <div>
@@ -210,10 +228,17 @@ HTML = r"""
     <table class="w-full text-sm">
       <thead>
         <tr class="text-white" style="background:#0053e2">
-          <th class="text-left px-5 py-3 font-semibold w-2/5">Metric</th>
-          <th class="text-right px-5 py-3 font-semibold">Mapbox (Test)</th>
-          <th class="text-right px-5 py-3 font-semibold">Control</th>
-          <th class="text-right px-5 py-3 font-semibold">Delta (Test - Control)</th>
+          <th class="text-left px-3 py-3 font-semibold" rowspan="2">Metric</th>
+          <th class="text-center px-3 py-2 font-semibold border-l border-blue-400" colspan="3">Mapbox (Test)</th>
+          <th class="text-center px-3 py-2 font-semibold border-l border-blue-400" colspan="3">Control</th>
+        </tr>
+        <tr class="text-white text-xs" style="background:#0042b8">
+          <th class="text-right px-3 py-2 font-medium border-l border-blue-400">Pre</th>
+          <th class="text-right px-3 py-2 font-medium">Post</th>
+          <th class="text-right px-3 py-2 font-medium">Post&minus;Pre</th>
+          <th class="text-right px-3 py-2 font-medium border-l border-blue-400">Pre</th>
+          <th class="text-right px-3 py-2 font-medium">Post</th>
+          <th class="text-right px-3 py-2 font-medium">Post&minus;Pre</th>
         </tr>
       </thead>
       <tbody id="kpi_body"></tbody>
@@ -352,14 +377,12 @@ function dateToWeeks(from, to) {
 }
 
 // ---- filter -------------------------------------------------------------
-function filterRows() {
-  const from    = document.getElementById('dt_from').value;
-  const to      = document.getElementById('dt_to').value;
+function filterRowsByRange(from, to) {
+  if (!from || !to) return [];
   const addrSel = getChecked('addr');
   const ctrlSel = getChecked('ctrl');
   const rollout = document.getElementById('rollout_sel').value;
   const wkSet   = new Set(dateToWeeks(from, to));
-
   return RAW.filter(r => {
     if (!wkSet.has(r.wm_wk)) return false;
     if (addrSel.length && !addrSel.includes(r.address_type)) return false;
@@ -382,20 +405,27 @@ function deltaClass(key, d) {
   return (lowerBetter ? d < 0 : d > 0) ? 'text-green-600 font-semibold' : 'text-red-500 font-semibold';
 }
 
-function renderTable(test, ctrl) {
+function renderTable(testPre, testPost, ctrlPre, ctrlPost) {
   let html = '';
   METRICS.forEach(([key, label, isP], i) => {
-    const tv  = test ? test[key] : null;
-    const cv  = ctrl ? ctrl[key] : null;
-    const d   = (tv != null && cv != null) ? tv - cv : null;
-    const bg  = i % 2 ? 'bg-gray-50' : 'bg-white';
-    const dc  = deltaClass(key, d);
-    const sgn = (d != null && d > 0) ? '+' : '';
+    const tPre   = testPre  ? testPre[key]  : null;
+    const tPost  = testPost ? testPost[key] : null;
+    const cPre   = ctrlPre  ? ctrlPre[key]  : null;
+    const cPost  = ctrlPost ? ctrlPost[key] : null;
+    const tDelta = (tPre  != null && tPost != null) ? tPost - tPre  : null;
+    const cDelta = (cPre  != null && cPost != null) ? cPost - cPre  : null;
+    const bg     = i % 2 ? 'bg-gray-50' : 'bg-white';
+    const tDc    = deltaClass(key, tDelta);
+    const cDc    = deltaClass(key, cDelta);
+    const sgn    = v => (v != null && v > 0) ? '+' : '';
     html += '<tr class="' + bg + ' border-t border-gray-100 hover:bg-blue-50">'
-      + '<td class="px-5 py-2.5 font-medium">' + label + '</td>'
-      + '<td class="px-5 py-2.5 text-right font-mono" style="color:' + BLUE  + '">' + fmt(tv, !isP) + '</td>'
-      + '<td class="px-5 py-2.5 text-right font-mono" style="color:' + AMBER + '">' + fmt(cv, !isP) + '</td>'
-      + '<td class="px-5 py-2.5 text-right font-mono ' + dc + '">' + (d != null ? sgn + fmt(d, !isP) : '-') + '</td>'
+      + '<td class="px-3 py-2 font-medium text-sm">' + label + '</td>'
+      + '<td class="px-3 py-2 text-right font-mono text-sm border-l border-gray-100" style="color:' + BLUE  + '">' + fmt(tPre,  !isP) + '</td>'
+      + '<td class="px-3 py-2 text-right font-mono text-sm" style="color:' + BLUE  + '">' + fmt(tPost, !isP) + '</td>'
+      + '<td class="px-3 py-2 text-right font-mono text-sm ' + tDc + '">' + (tDelta != null ? sgn(tDelta) + fmt(tDelta, !isP) : '-') + '</td>'
+      + '<td class="px-3 py-2 text-right font-mono text-sm border-l border-gray-100" style="color:' + AMBER + '">' + fmt(cPre,  !isP) + '</td>'
+      + '<td class="px-3 py-2 text-right font-mono text-sm" style="color:' + AMBER + '">' + fmt(cPost, !isP) + '</td>'
+      + '<td class="px-3 py-2 text-right font-mono text-sm ' + cDc + '">' + (cDelta != null ? sgn(cDelta) + fmt(cDelta, !isP) : '-') + '</td>'
       + '</tr>';
   });
   document.getElementById('kpi_body').innerHTML = html;
@@ -444,22 +474,38 @@ function buildCharts(weeks, tWk, cWk) {
 
 // ---- main ---------------------------------------------------------------
 function applyFilters() {
-  const rows     = filterRows();
-  const testRows = rows.filter(r => r.Test_Control === 'Test');
-  const ctrlRows = rows.filter(r => r.Test_Control === 'Control');
-  renderTable(computeMetrics(testRows), computeMetrics(ctrlRows));
+  const preFrom  = document.getElementById('pre_from').value;
+  const preTo    = document.getElementById('pre_to').value;
+  const postFrom = document.getElementById('post_from').value;
+  const postTo   = document.getElementById('post_to').value;
 
-  const from  = document.getElementById('dt_from').value;
-  const to    = document.getElementById('dt_to').value;
-  const weeks = dateToWeeks(from, to);
-  const tWk   = weeks.map(w => computeMetrics(testRows.filter(r => r.wm_wk === w)));
-  const cWk   = weeks.map(w => computeMetrics(ctrlRows.filter(r => r.wm_wk === w)));
-  buildCharts(weeks, tWk, cWk);
+  const preRows  = filterRowsByRange(preFrom, preTo);
+  const postRows = filterRowsByRange(postFrom, postTo);
+
+  const testPre  = computeMetrics(preRows.filter(r  => r.Test_Control === 'Test'));
+  const testPost = computeMetrics(postRows.filter(r => r.Test_Control === 'Test'));
+  const ctrlPre  = computeMetrics(preRows.filter(r  => r.Test_Control === 'Control'));
+  const ctrlPost = computeMetrics(postRows.filter(r => r.Test_Control === 'Control'));
+
+  renderTable(testPre, testPost, ctrlPre, ctrlPost);
+
+  // Charts span the full visible range (pre start -> post end)
+  const chartFrom = preFrom  || postFrom;
+  const chartTo   = postTo   || preTo;
+  if (chartFrom && chartTo) {
+    const weeks   = dateToWeeks(chartFrom, chartTo);
+    const allRows = preRows.concat(postRows);
+    const tWk     = weeks.map(w => computeMetrics(allRows.filter(r => r.wm_wk === w && r.Test_Control === 'Test')));
+    const cWk     = weeks.map(w => computeMetrics(allRows.filter(r => r.wm_wk === w && r.Test_Control === 'Control')));
+    buildCharts(weeks, tWk, cWk);
+  }
 }
 
 function resetFilters() {
-  document.getElementById('dt_from').value = META.date_min;
-  document.getElementById('dt_to').value   = META.date_max;
+  document.getElementById('pre_from').value  = '';
+  document.getElementById('pre_to').value    = '';
+  document.getElementById('post_from').value = '';
+  document.getElementById('post_to').value   = '';
   document.querySelectorAll('#addr_opts input').forEach(c => c.checked = true);
   document.getElementById('addr_all').checked = true;
   updateLabel('addr');
@@ -473,9 +519,6 @@ function resetFilters() {
 function rolloutLabel(v) { return isNaN(Number(v)) ? v : v + '%'; }
 
 (function init() {
-  document.getElementById('dt_from').value = META.date_min;
-  document.getElementById('dt_to').value   = META.date_max;
-
   buildDD('addr', META.address_types, function() { return true; });        // all selected
   buildDD('ctrl', META.ctrl_sources,  function(v) { return v === 'GOOGLE'; }); // GOOGLE only
 
@@ -483,6 +526,7 @@ function rolloutLabel(v) { return isNaN(Number(v)) ? v : v + '%'; }
   rollEl.appendChild(new Option('All', ''));
   META.rollout_pcts.forEach(v => rollEl.appendChild(new Option(rolloutLabel(v), v)));
 
+  // Pre/Post dates start empty — user sets them manually
   applyFilters();
 }());
 </script>
