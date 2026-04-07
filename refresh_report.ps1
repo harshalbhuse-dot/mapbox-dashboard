@@ -31,7 +31,7 @@ try {
     & $python -m pip install -q `
         google-cloud-bigquery db-dtypes pyarrow `
         --index-url https://pypi.ci.artifacts.walmart.com/artifactory/api/pypi/external-pypi/simple `
-        --allow-insecure-host pypi.ci.artifacts.walmart.com
+        --trusted-host pypi.ci.artifacts.walmart.com
 
     # 3. Regenerate the HTML from BigQuery
     Log "Running generate_report.py..."
@@ -42,7 +42,7 @@ try {
     # 4. Commit and push if the file changed
     $status = git status --porcelain mapbox_report.html
     if ($status) {
-        Log "mapbox_report.html changed — committing and pushing..."
+        Log "mapbox_report.html changed - committing and pushing..."
         git add mapbox_report.html
         $date = (Get-Date -Format "yyyy-MM-dd HH:mm UTC")
         git commit -m "chore: auto-refresh mapbox report [$date]"
@@ -51,7 +51,7 @@ try {
         git push origin main
         Log "Pushed to GitHub Pages successfully."
     } else {
-        Log "No changes in mapbox_report.html — nothing to push."
+        Log "No changes in mapbox_report.html - nothing to push."
     }
 
 } catch {
