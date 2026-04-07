@@ -4,4 +4,3 @@ __pycache__/
 *.pyo
 .env
 *.log
-mapbox_report.html
